@@ -38,7 +38,8 @@ const defaultContent = {
 }
 
 const readStorage = (key) => { try { return JSON.parse(localStorage.getItem(key) || 'null') } catch { return null } }
-const fetchSharedState = async () => { try { const response = await fetch('/api/site-state', { cache: 'no-store' }); return response.ok ? await response.json() : {} } catch { return {} } }
+const siteStateUrl = import.meta.env.VITE_SITE_STATE_URL || '/api/site-state'
+const fetchSharedState = async () => { try { const response = await fetch(siteStateUrl, { cache: 'no-store' }); return response.ok ? await response.json() : {} } catch { return {} } }
 const sharedState = await fetchSharedState()
 const searchParams = new URLSearchParams(window.location.search)
 const routePath = window.location.pathname.replace(/\/+$/, '')
@@ -391,7 +392,7 @@ document.querySelector('#admin-form').addEventListener('submit', async (event) =
 
 document.querySelector('#admin-form').addEventListener('submit', async () => {
   try {
-    const response = await fetch('/api/site-state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, projects }) })
+    const response = await fetch(siteStateUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, projects }) })
     if (!response.ok) throw new Error('Shared state request failed')
     const savedState = await response.json()
     sharedUpdatedAt = savedState.updatedAt || sharedUpdatedAt

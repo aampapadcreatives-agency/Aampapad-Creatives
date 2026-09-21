@@ -69,7 +69,17 @@ document.documentElement.classList.toggle('studio-disabled', !studioEditEnabled)
 let projects = (storedProjects || defaultProjects).map((project) => ({ ...project, images: project.images || [project.image], videos: project.videos || [] }))
 
 const mediaDatabase = new Promise((resolve, reject) => { const request = indexedDB.open('aampapad-media', 1); request.onupgradeneeded = () => request.result.createObjectStore('assets'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
-const saveMedia = (file) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.addEventListener('load', () => resolve(reader.result)); reader.addEventListener('error', () => reject(reader.error)); reader.readAsDataURL(file) })
+const saveMedia = (file) => new Promise(async (resolve, reject) => {
+  try {
+    const database = await mediaDatabase
+    const assetId = `media:${Date.now()}-${Math.random().toString(16).slice(2)}`
+    const request = database.transaction('assets', 'readwrite').objectStore('assets').put(file, assetId.slice(6))
+    request.onsuccess = () => resolve(assetId)
+    request.onerror = () => reject(request.error)
+  } catch (error) {
+    reject(error)
+  }
+})
 const normalizeVideoSource = (source) => {
   if (!source || typeof source !== 'string') return ''
   if (source.startsWith('media:')) return source
@@ -81,7 +91,7 @@ const normalizeVideoSource = (source) => {
   }
   return trimmed
 }
-const loadMedia = async (source) => { if (!source) return ''; const normalizedSource = normalizeVideoSource(source); if (!normalizedSource.startsWith('media:')) return normalizedSource; const database = await mediaDatabase; const file = await new Promise((resolve, reject) => { const request = database.transaction('assets', 'readonly').objectStore('assets').get(normalizedSource.slice(6)); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) }); return file ? URL.createObjectURL(file) : '' }
+const loadMedia = async (source) => { if (!source) return ''; const normalizedSource = normalizeVideoSource(source); if (!normalizedSource.startsWith('media:')) return normalizedSource; const database = await mediaDatabase; const file = await new Promise((resolve, reject) => { const request = database.transaction('assets', 'readonly').objectStore('assets').get(normalizedSource.slice(6)); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) }); if (!file) return ''; return file instanceof Blob ? URL.createObjectURL(file) : '' }
 
 const app = document.querySelector('#app')
 const cleanAppTemplate = (markup) => {
@@ -356,7 +366,7 @@ document.querySelector('#inquiry-form').addEventListener('submit', (event) => { 
 
 document.querySelectorAll('.admin-tab').forEach((button) => button.addEventListener('click', () => { document.querySelectorAll('.admin-tab').forEach((tab) => tab.classList.remove('active')); document.querySelectorAll('.admin-view').forEach((view) => view.classList.remove('active')); button.classList.add('active'); document.querySelector(`[data-admin-view="${button.dataset.adminTab}"]`).classList.add('active') }))
 document.querySelectorAll('.admin-view input[type="range"]').forEach((input) => input.addEventListener('input', () => { input.nextElementSibling.value = `${input.value}${input.name === 'radius' ? 'px' : ''}` }))
-document.querySelector('#hero-upload').addEventListener('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.addEventListener('load', () => { document.querySelector('[name="heroImage"]').value = reader.result }); reader.readAsDataURL(file) })
+document.querySelector('#hero-upload').addEventListener('change', async (event) => { const file = event.target.files[0]; if (!file) return; const mediaSource = await saveMedia(file); document.querySelector('[name="heroImage"]').value = mediaSource; content.heroImage = mediaSource; syncHeroMedia() })
 document.querySelector('#hero-video-upload').addEventListener('change', async (event) => { const file = event.target.files[0]; if (!file) return; const mediaSource = await saveMedia(file); document.querySelector('[name="heroVideo"]').value = mediaSource; content.heroVideo = mediaSource; syncHeroMedia() })
 document.querySelector('#add-project').addEventListener('click', () => { projects.push({ title: 'New work', type: 'Campaigns', meta: 'Your client / 2026', image: defaultProjects[0].image, images: [defaultProjects[0].image], videos: [], className: 'project-wide' }); renderAdminProjects() })
 document.querySelector('#admin-projects').addEventListener('input', (event) => { const field = event.target.dataset.projectField; if (!field) return; projects[Number(event.target.closest('.admin-project').dataset.projectIndex)][field] = event.target.value })

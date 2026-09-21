@@ -16,5 +16,8 @@
   },
   "devDependencies": {
     "vite": "^7.1.2"
+  },
+  "dependencies": {
+    "@vercel/blob": "^1.1.1"
   }
 }
